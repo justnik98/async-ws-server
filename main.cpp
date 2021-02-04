@@ -27,7 +27,7 @@ fail(beast::error_code ec, char const* what)
 void
 do_session(
         websocket::stream<beast::tcp_stream>& ws,
-        net::yield_context yield)
+        const net::yield_context& yield)
 {
     beast::error_code ec;
 
@@ -76,11 +76,11 @@ do_session(
 //------------------------------------------------------------------------------
 
 // Accepts incoming connections and launches the sessions
-void
+[[noreturn]] void
 do_listen(
         net::io_context& ioc,
-        tcp::endpoint endpoint,
-        net::yield_context yield)
+        const tcp::endpoint& endpoint,
+        const net::yield_context& yield)
 {
     beast::error_code ec;
 
@@ -88,22 +88,22 @@ do_listen(
     tcp::acceptor acceptor(ioc);
     acceptor.open(endpoint.protocol(), ec);
     if(ec)
-        return fail(ec, "open");
+        fail(ec, "open");
 
     // Allow address reuse
     acceptor.set_option(net::socket_base::reuse_address(true), ec);
     if(ec)
-        return fail(ec, "set_option");
+        fail(ec, "set_option");
 
     // Bind to the server address
     acceptor.bind(endpoint, ec);
     if(ec)
-        return fail(ec, "bind");
+        fail(ec, "bind");
 
     // Start listening for connections
     acceptor.listen(net::socket_base::max_listen_connections, ec);
     if(ec)
-        return fail(ec, "listen");
+        fail(ec, "listen");
 
     for(;;)
     {
