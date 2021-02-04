@@ -1,11 +1,9 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
 #include <boost/asio/spawn.hpp>
-#include <algorithm>
 #include <cstdlib>
 #include <functional>
 #include <iostream>
-#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
