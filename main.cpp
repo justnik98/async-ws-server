@@ -142,11 +142,7 @@ int main(int argc, char* argv[])
 
     // Spawn a listening port
     boost::asio::spawn(ioc,
-                       std::bind(
-                               &do_listen,
-                               std::ref(ioc),
-                               tcp::endpoint{address, port},
-                               std::placeholders::_1));
+                       [&ioc, capture0 = tcp::endpoint{address, port}](auto && PH1) { return do_listen(ioc, capture0, std::forward<decltype(PH1)>(PH1)); });
 
     // Run the I/O service on the requested number of threads
     std::vector<std::thread> v;
