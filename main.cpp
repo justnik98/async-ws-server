@@ -4,7 +4,6 @@
 #include <boost/asio/strand.hpp>
 #include <boost/asio/dispatch.hpp>
 #include <cstdlib>
-#include <functional>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -21,16 +20,13 @@ using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
 // Report a failure
 void
-fail(beast::error_code ec, char const* what)
-{
+fail(beast::error_code ec, char const *what) {
     std::cerr << what << ": " << ec.message() << "\n";
 }
 
 // Echoes back all received WebSocket messages
 class session
-        : public boost::asio::coroutine
-                , public std::enable_shared_from_this<session>
-{
+        : public boost::asio::coroutine, public std::enable_shared_from_this<session> {
     websocket::stream<beast::tcp_stream> ws_;
     beast::flat_buffer buffer_;
 
@@ -38,14 +34,12 @@ public:
     // Take ownership of the socket
     explicit
     session(tcp::socket socket)
-            : ws_(std::move(socket))
-    {
+            : ws_(std::move(socket)) {
     }
 
     // Start the asynchronous operation
     void
-    run()
-    {
+    run() {
         // We need to be executing within a strand to perform async operations
         // on the I/O objects in this session. Although not strictly necessary
         // for single-threaded contexts, this example code is written to be
@@ -62,8 +56,7 @@ public:
     void
     loop(
             beast::error_code ec,
-            std::size_t bytes_transferred)
-    {
+            std::size_t bytes_transferred) {
         boost::ignore_unused(bytes_transferred);
         reenter(*this)
         {
@@ -74,51 +67,45 @@ public:
 
             // Set a decorator to change the Server of the handshake
             ws_.set_option(websocket::stream_base::decorator(
-                    [](websocket::response_type& res)
-                    {
+                    [](websocket::response_type &res) {
                         res.set(http::field::server,
                                 std::string(BOOST_BEAST_VERSION_STRING) +
                                 " websocket-server-stackless");
                     }));
 
             // Accept the websocket handshake
-            yield ws_.async_accept(
-                    std::bind(
-                            &session::loop,
-                            shared_from_this(),
-                            std::placeholders::_1,
-                            0));
-            if(ec)
+            yield
+            ws_.async_accept(
+                    [capture0 = shared_from_this()](auto &&PH1) {
+                        capture0->loop(std::forward<decltype(PH1)>(PH1), 0);
+                    });
+            if (ec)
                 return fail(ec, "accept");
 
-            for(;;)
-            {
+            for (;;) {
                 // Read a message into our buffer
-                yield ws_.async_read(
+                yield
+                ws_.async_read(
                         buffer_,
-                        std::bind(
-                                &session::loop,
-                                shared_from_this(),
-                                std::placeholders::_1,
-                                std::placeholders::_2));
-                if(ec == websocket::error::closed)
-                {
+                        [capture0 = shared_from_this()](auto &&PH1, auto &&PH2) {
+                            capture0->loop(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
+                        });
+                if (ec == websocket::error::closed) {
                     // This indicates that the session was closed
                     return;
                 }
-                if(ec)
+                if (ec)
                     fail(ec, "read");
 
                 // Echo the message
                 ws_.text(ws_.got_text());
-                yield ws_.async_write(
+                yield
+                ws_.async_write(
                         buffer_.data(),
-                        std::bind(
-                                &session::loop,
-                                shared_from_this(),
-                                std::placeholders::_1,
-                                std::placeholders::_2));
-                if(ec)
+                        [capture0 = shared_from_this()](auto &&PH1, auto &&PH2) {
+                            capture0->loop(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
+                        });
+                if (ec)
                     return fail(ec, "write");
 
                 // Clear the buffer
@@ -126,51 +113,41 @@ public:
             }
         }
     }
-
-#include <boost/asio/unyield.hpp>
 };
 
 //------------------------------------------------------------------------------
 
 // Accepts incoming connections and launches the sessions
 class listener
-        : public boost::asio::coroutine
-                , public std::enable_shared_from_this<listener>
-{
-    net::io_context& ioc_;
+        : public boost::asio::coroutine, public std::enable_shared_from_this<listener> {
+    net::io_context &ioc_;
     tcp::acceptor acceptor_;
     tcp::socket socket_;
 
 public:
     listener(
-            net::io_context& ioc,
-            tcp::endpoint endpoint)
-            : ioc_(ioc)
-            , acceptor_(net::make_strand(ioc))
-            , socket_(net::make_strand(ioc))
-    {
+            net::io_context &ioc,
+            const tcp::endpoint &endpoint)
+            : ioc_(ioc), acceptor_(net::make_strand(ioc)), socket_(net::make_strand(ioc)) {
         beast::error_code ec;
 
         // Open the acceptor
         acceptor_.open(endpoint.protocol(), ec);
-        if(ec)
-        {
+        if (ec) {
             fail(ec, "open");
             return;
         }
 
         // Allow address reuse
         acceptor_.set_option(net::socket_base::reuse_address(true), ec);
-        if(ec)
-        {
+        if (ec) {
             fail(ec, "set_option");
             return;
         }
 
         // Bind to the server address
         acceptor_.bind(endpoint, ec);
-        if(ec)
-        {
+        if (ec) {
             fail(ec, "bind");
             return;
         }
@@ -178,8 +155,7 @@ public:
         // Start listening for connections
         acceptor_.listen(
                 net::socket_base::max_listen_connections, ec);
-        if(ec)
-        {
+        if (ec) {
             fail(ec, "listen");
             return;
         }
@@ -187,34 +163,27 @@ public:
 
     // Start accepting incoming connections
     void
-    run()
-    {
+    run() {
         loop();
     }
 
 private:
 
-#include <boost/asio/yield.hpp>
 
     void
-    loop(beast::error_code ec = {})
-    {
+    loop(beast::error_code ec = {}) {
         reenter(*this)
         {
-            for(;;)
-            {
-                yield acceptor_.async_accept(
+            for (;;) {
+                yield
+                acceptor_.async_accept(
                         socket_,
-                        std::bind(
-                                &listener::loop,
-                                shared_from_this(),
-                                std::placeholders::_1));
-                if(ec)
-                {
+                        [capture0 = shared_from_this()](auto &&PH1) {
+                            capture0->loop(std::forward<decltype(PH1)>(PH1));
+                        });
+                if (ec) {
                     fail(ec, "accept");
-                }
-                else
-                {
+                } else {
                     // Create the session and run it
                     std::make_shared<session>(std::move(socket_))->run();
                 }
@@ -224,17 +193,13 @@ private:
             }
         }
     }
-
-#include <boost/asio/unyield.hpp>
 };
 
 //------------------------------------------------------------------------------
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char *argv[]) {
     // Check command line arguments.
-    if (argc != 4)
-    {
+    if (argc != 4) {
         std::cerr <<
                   "Usage: websocket-server-stackless <address> <port> <threads>\n" <<
                   "Example:\n" <<
@@ -254,10 +219,9 @@ int main(int argc, char* argv[])
     // Run the I/O service on the requested number of threads
     std::vector<std::thread> v;
     v.reserve(threads - 1);
-    for(auto i = threads - 1; i > 0; --i)
+    for (auto i = threads - 1; i > 0; --i)
         v.emplace_back(
-                [&ioc]
-                {
+                [&ioc] {
                     ioc.run();
                 });
     ioc.run();
