@@ -99,6 +99,9 @@ public:
 
                 // Echo the message
                 ws_.text(ws_.got_text());
+                std::cout << boost::beast::buffers_to_string(buffer_.data()) << std::endl;
+                std::this_thread::sleep_for(std::chrono::seconds(10));
+
                 yield
                 ws_.async_write(
                         buffer_.data(),
