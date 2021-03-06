@@ -1,7 +1,12 @@
 //
 // Created by justnik on 06.03.2021.
 //
+
+#include <string>
+#include <sstream>
+#include "pipeline.h"
 #include "session.h"
+
 
 session::session(tcp::socket socket)
         : ws_(std::move(socket)) {
@@ -21,6 +26,7 @@ void session::run() {
 
 void session::loop(beast::error_code ec, std::size_t bytes_transferred) {
     boost::ignore_unused(bytes_transferred);
+    std::string str;
     reenter(*this) {
                     // Set suggested timeout settings for the websocket
                     ws_.set_option(
@@ -65,7 +71,9 @@ void session::loop(beast::error_code ec, std::size_t bytes_transferred) {
 
                         // Echo the message
                         ws_.text(ws_.got_text());
-                        std::cout << boost::beast::buffers_to_string(buffer_.data()) << std::endl;
+                        str = (boost::beast::buffers_to_string(buffer_.data()));
+                        std::cout << str << std::endl;
+                        runPipeline(str);
                         std::this_thread::sleep_for(std::chrono::seconds(10));
 
                         yield
