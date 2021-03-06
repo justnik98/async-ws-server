@@ -31,12 +31,14 @@ void runPipeline(std::string &str) {
     lang.erase(remove_if(lang.begin(), lang.end(), [](unsigned char x) { return x == '\"'; }),
                lang.end());
     std::string filename = ss.str();
-    std::ofstream out(filename + lang);
+    std::string outfile = filename + lang;
+    std::string infile = filename + "res";
+    std::ofstream out(outfile);
     out << code << std::endl;
     out.close();
-
-    system("./script.sh");//mock
-    std::ifstream in(filename + "res");
+    std::string command = "./script.sh " + outfile + " " + infile;
+    system(command.c_str());//mock
+    std::ifstream in(infile);
     if (!in.is_open()) {
         std::cerr << "Time exceeded";
         return;
